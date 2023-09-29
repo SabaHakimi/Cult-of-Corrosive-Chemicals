@@ -1,5 +1,3 @@
-import sqlalchemy
-from src import database as db
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from src.api import auth
@@ -47,6 +45,3 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
 
     return {"total_potions_bought": 1, "total_gold_paid": 50}
-
-with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(sql_to_execute))

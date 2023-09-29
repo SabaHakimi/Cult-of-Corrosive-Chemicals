@@ -1,5 +1,3 @@
-import sqlalchemy
-from src import database as db
 from fastapi import APIRouter, Depends
 from enum import Enum
 from pydantic import BaseModel
@@ -41,6 +39,3 @@ def get_bottle_plan():
                 "quantity": 5,
             }
         ]
-
-with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(sql_to_execute))
