@@ -39,10 +39,9 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 # Place order
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
-    sql_to_execute= """SELECT num_red_potions FROM global_inventory"""
-    print(wholesale_catalog)
+    qry_sql = """SELECT num_red_potions FROM global_inventory"""
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(sql_to_execute))
+        result = connection.execute(sqlalchemy.text(qry_sql))
     data = result.first()
     
     return [

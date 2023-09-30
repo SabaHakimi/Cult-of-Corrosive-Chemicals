@@ -1,3 +1,5 @@
+import sqlalchemy
+from src import database as db
 from fastapi import APIRouter, Depends
 from enum import Enum
 from pydantic import BaseModel
@@ -15,8 +17,16 @@ class PotionInventory(BaseModel):
 
 @router.post("/deliver")
 def post_deliver_bottles(potions_delivered: list[PotionInventory]):
-    """ """
-    print(potions_delivered)
+    qry_sql = """SELECT num_red_ml, num_red_potions FROM global_inventory"""    
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text(qry_sql))
+    data = result.first()
+
+    set_sql = """UPDATE global_inventory SET num_red_ml = {}, 
+    num_red_potions = {}""".format(data.num_red_ml - potions_delivered[0].quantity * 100, 
+                            data.num_red_potions + potions_delivered[0].quantity)
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text(set_sql))
 
     return "OK"
 
@@ -33,9 +43,14 @@ def get_bottle_plan():
 
     # Initial logic: bottle all barrels into red potions.
 
+    qry_sql = """SELECT num_red_ml FROM global_inventory"""
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text(qry_sql))
+    data = result.first()
+
     return [
             {
                 "potion_type": [100, 0, 0, 0],
-                "quantity": 5,
+                "quantity": data.num_red_ml // 100,
             }
         ]
