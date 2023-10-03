@@ -48,9 +48,11 @@ def get_bottle_plan():
         result = connection.execute(sqlalchemy.text(qry_sql))
     data = result.first()
 
-    return [
-            {
-                "potion_type": [100, 0, 0, 0],
-                "quantity": data.num_red_ml // 100,
-            }
+    if data.num_red_ml >= 100:
+        return [
+                {
+                    "potion_type": [100, 0, 0, 0],
+                    "quantity": data.num_red_ml // 100,
+                }
         ]
+    return []
