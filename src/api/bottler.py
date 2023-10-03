@@ -26,7 +26,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
     num_red_potions = {}""".format(data.num_red_ml - potions_delivered[0].quantity * 100, 
                             data.num_red_potions + potions_delivered[0].quantity)
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(set_sql))
+        connection.execute(sqlalchemy.text(set_sql))
 
     return "OK"
 

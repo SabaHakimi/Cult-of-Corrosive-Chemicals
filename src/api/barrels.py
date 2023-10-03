@@ -31,7 +31,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
     gold = {}""".format(data.num_red_ml + barrels_delivered[0].ml_per_barrel, 
                             data.gold - barrels_delivered[0].price)
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(set_sql))
+        connection.execute(sqlalchemy.text(set_sql))
 
     return "OK"
 
@@ -39,16 +39,17 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 # Place order
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
-    qry_sql = """SELECT num_red_potions FROM global_inventory"""
+    qry_sql = """SELECT num_red_potions, gold FROM global_inventory"""
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text(qry_sql))
     data = result.first()
     
-    return [
-        {
-            "sku": "SMALL_RED_BARREL",
-            "quantity": 1 if data.num_red_potions < 10 and 
-            wholesale_catalog[0].price < data.gold and 
-            wholesale_catalog[0].quantity > 0 else 0,
-        }
-    ]
+    if data.num_red_potions < 10 and wholesale_catalog[0].price < data.gold and wholesale_catalog[0].quantity > 0:
+        return [
+            {
+                "sku": "SMALL_RED_BARREL",
+                "quantity": 1
+            }
+        ]
+    else:
+        return []
