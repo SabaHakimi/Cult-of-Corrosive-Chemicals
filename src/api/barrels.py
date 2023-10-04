@@ -43,7 +43,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text(qry_sql))
     data = result.first()
-    
+    for i in range(len(wholesale_catalog)):
+        print(wholesale_catalog[i])
     if data.num_red_potions < 10 and wholesale_catalog[0].price < data.gold and wholesale_catalog[0].quantity > 0:
         return [
             {
@@ -51,5 +52,4 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 "quantity": 1
             }
         ]
-    else:
-        return []
+    return []
