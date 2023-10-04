@@ -45,11 +45,12 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     data = result.first()
     for i in range(len(wholesale_catalog)):
         print(wholesale_catalog[i])
-    if data.num_red_potions < 10 and wholesale_catalog[0].price < data.gold and wholesale_catalog[0].quantity > 0:
-        return [
-            {
-                "sku": "SMALL_RED_BARREL",
-                "quantity": 1
-            }
-        ]
+        if wholesale_catalog[i].sku == "SMALL_RED_BARREL":
+            if data.num_red_potions < 10 and wholesale_catalog[i].price < data.gold and wholesale_catalog[i].quantity > 0:
+                return [
+                    {
+                        "sku": "SMALL_RED_BARREL",
+                        "quantity": 1
+                    }
+                ]
     return []
