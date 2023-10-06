@@ -3,7 +3,7 @@ from src import database as db
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
-from util import get_shop_data
+from src.api import util
 
 router = APIRouter(
     prefix="/barrels",
@@ -24,7 +24,7 @@ class Barrel(BaseModel):
 @router.post("/deliver")
 def post_deliver_barrels(barrels_delivered: list[Barrel]):
     print("Calling post_deliver_barrels")
-    data = get_shop_data()
+    data = util.get_shop_data()
     print("Pre-barrel-delivery:\nnum_red_ml: {}, gold: {}".format(data.num_red_ml, data.gold))
     print("ml_added_from_barrel: {}, price: {}".format(barrels_delivered[0].ml_per_barrel, barrels_delivered[0].price))
 
@@ -34,7 +34,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(set_sql))
 
-    data = get_shop_data()
+    data = util.get_shop_data()
     print("Post-barrel-delivery:\nnum_red_ml: {}, gold: {}".format(data.num_red_ml, data.gold))
 
     return "OK"
@@ -44,7 +44,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print("Calling get_wholesale_purchase_plan")
-    data = get_shop_data()
+    data = util.get_shop_data()
     print("Num_red_potions: {}, Gold: {}".format(data.num_red_potions, data.gold))
    
     print("Wholesale Catalog:")

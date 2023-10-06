@@ -1,7 +1,7 @@
 import sqlalchemy
 from src import database as db
 from fastapi import APIRouter
-from util import get_shop_data
+from src.api import util
 
 router = APIRouter()
 
@@ -12,7 +12,7 @@ def get_catalog():
     Each unique item combination must have only a single price.
     """
     # Can return a max of 20 items.
-    data = get_shop_data()
+    data = util.get_shop_data()
 
     if data.num_red_potions > 0:
         return [

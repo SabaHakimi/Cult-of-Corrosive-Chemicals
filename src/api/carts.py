@@ -3,7 +3,7 @@ from src import database as db
 from fastapi import APIRouter, Depends, Request, HTTPException
 from pydantic import BaseModel
 from src.api import auth
-from util import get_shop_data, get_cart_data
+from src.api import util 
 
 router = APIRouter(
     prefix="/carts",
@@ -24,7 +24,7 @@ def create_cart(new_cart: NewCart):
         result = connection.execute(sqlalchemy.text(set_sql))
     data = result.first()
 
-    cart_data = get_cart_data(data.id)
+    cart_data = util.get_cart_data(data.id)
     print("Created cart for {}".format(cart_data.customer_name))
 
     return {"cart_id": data.id}
@@ -52,7 +52,7 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     set_sql = """UPDATE carts SET {} = {} WHERE id = {}""".format(item_sku, cart_item.quantity, cart_id)
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text(set_sql))
-    cart_entry = get_cart_data(cart_id)
+    cart_entry = util.get_cart_data(cart_id)
     print("Cart {} for {} requests {} potions".format(cart_id, cart_entry.customer_name, cart_entry.red_potion_0))
 
     return "OK"
@@ -65,8 +65,8 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     print("Calling checkout")
 
-    shop_data = get_shop_data
-    cart_data = get_cart_data(cart_id)
+    shop_data = util.get_shop_data
+    cart_data = util.get_cart_data(cart_id)
     potions_sold = cart_data.red_potion_0
     gold_earned = 50 * cart_data.red_potion_0
 
@@ -82,7 +82,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(set_transaction_sql))
 
-    shop_data = get_shop_data()
+    shop_data = util.get_shop_data()
     print("Transaction completed:\nnum_potions_remaining: {}, gold_after_earnings: {}".format(
         shop_data.num_red_potions, shop_data.gold))
     
