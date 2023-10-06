@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from enum import Enum
 from pydantic import BaseModel
 from src.api import auth
+from util import get_shop_data
 
 router = APIRouter(
     prefix="/bottler",
@@ -17,14 +18,16 @@ class PotionInventory(BaseModel):
 
 @router.post("/deliver")
 def post_deliver_bottles(potions_delivered: list[PotionInventory]):
-    qry_sql = """SELECT num_red_ml, num_red_potions FROM global_inventory"""    
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(qry_sql))
-    data = result.first()
+    print("Calling post_deliver_bottles")
+    print("potions_delivered:\n{}".format(potions_delivered))
+    data = get_shop_data()
 
+    num_red_ml_expended = potions_delivered[0].quantity * 100
+    num_potions_made = potions_delivered[0].quantity
+    print("num_red_ml_expended: {}\nnum_potions_made: {}".format(num_red_ml_expended, num_potions_made))
     set_sql = """UPDATE global_inventory SET num_red_ml = {}, 
-    num_red_potions = {}""".format(data.num_red_ml - potions_delivered[0].quantity * 100, 
-                            data.num_red_potions + potions_delivered[0].quantity)
+    num_red_potions = {}""".format(data.num_red_ml - num_red_ml_expended, 
+                            data.num_red_potions + num_potions_made)
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(set_sql))
 
@@ -42,12 +45,11 @@ def get_bottle_plan():
     # Expressed in integers from 1 to 100 that must sum up to 100.
 
     # Initial logic: bottle all barrels into red potions.
+    print("Calling get_bottle_plan")
 
-    qry_sql = """SELECT num_red_ml FROM global_inventory"""
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(qry_sql))
-    data = result.first()
-
+    data = get_shop_data
+    print("Pre-mix num_red_ml: {}".format(data.num_red_ml))
+    print("Intending to make {} potions".format(data.num_red_ml // 100))
     if data.num_red_ml >= 100:
         return [
                 {
