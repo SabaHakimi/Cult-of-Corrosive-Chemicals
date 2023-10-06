@@ -3,6 +3,7 @@ from src import database as db
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
+from src.api import util
 import math
 
 router = APIRouter(
@@ -13,10 +14,7 @@ router = APIRouter(
 
 @router.get("/inventory")
 def get_inventory():
-    qry_sql = """SELECT * FROM global_inventory"""
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(qry_sql))
-    data = result.first()
+    data = util.get_shop_data()
     
     return {"number_of_potions": data.num_red_potions, "ml_in_barrels": data.num_red_ml, "gold": data.gold}
 

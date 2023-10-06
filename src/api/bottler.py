@@ -47,7 +47,7 @@ def get_bottle_plan():
     # Initial logic: bottle all barrels into red potions.
     print("Calling get_bottle_plan")
 
-    data = util.get_shop_data
+    data = util.get_shop_data()
     print("Pre-mix num_red_ml: {}".format(data.num_red_ml))
     print("Intending to make {} potions".format(data.num_red_ml // 100))
     if data.num_red_ml >= 100:

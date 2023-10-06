@@ -65,7 +65,7 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     print("Calling checkout")
 
-    shop_data = util.get_shop_data
+    shop_data = util.get_shop_data()
     cart_data = util.get_cart_data(cart_id)
     potions_sold = cart_data.red_potion_0
     gold_earned = 50 * cart_data.red_potion_0
