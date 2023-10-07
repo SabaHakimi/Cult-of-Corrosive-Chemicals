@@ -24,39 +24,37 @@ class Barrel(BaseModel):
 @router.post("/deliver")
 def post_deliver_barrels(barrels_delivered: list[Barrel]):
     print("Calling post_deliver_barrels")
-    data = util.get_shop_data()
-    print("Pre-barrel-delivery:\nnum_red_ml: {}, gold: {}".format(data.num_red_ml, data.gold))
-    print("ml_added_from_barrel: {}, price: {}".format(barrels_delivered[0].ml_per_barrel, barrels_delivered[0].price))
-
-    set_sql = """UPDATE global_inventory SET num_red_ml = {}, 
-    gold = {}""".format(data.num_red_ml + barrels_delivered[0].ml_per_barrel, 
-                            data.gold - barrels_delivered[0].price)
     with db.engine.begin() as connection:
+        print("Pre-barrel-delivery:")
+        util.get_shop_data(connection)
+        print(f"ml_added_from_barrel: {barrels_delivered[0].ml_per_barrel}, price: {barrels_delivered[0].price}")
+
+        set_sql = f"""UPDATE global_inventory SET num_red_ml = num_red_ml + {barrels_delivered[0].ml_per_barrel}, 
+        gold = gold - {barrels_delivered[0].price}"""
         connection.execute(sqlalchemy.text(set_sql))
 
-    data = util.get_shop_data()
-    print("Post-barrel-delivery:\nnum_red_ml: {}, gold: {}".format(data.num_red_ml, data.gold))
+        print("Post-barrel-delivery:")
+        util.get_shop_data(connection)
 
-    return "OK"
+        return "OK"
 
 # Gets called once a day
 # Place order
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print("Calling get_wholesale_purchase_plan")
-    data = util.get_shop_data()
-    print("Num_red_potions: {}, Gold: {}".format(data.num_red_potions, data.gold))
-   
-    print("Wholesale Catalog:")
-    for i in range(len(wholesale_catalog)):
-        print(wholesale_catalog[i])
-        if wholesale_catalog[i].sku == "SMALL_RED_BARREL":
-            if data.num_red_potions < 10 and wholesale_catalog[i].price <= data.gold and wholesale_catalog[i].quantity > 0:
-                print ("Planning to purchase {}".format(wholesale_catalog[i]))
-                return [
-                    {
-                        "sku": "SMALL_RED_BARREL",
-                        "quantity": 1
-                    }
-                ]
-    return []
+    with db.engine.begin() as connection:
+        data = util.get_shop_data(connection)    
+        print("Wholesale Catalog:")
+        for i in range(len(wholesale_catalog)):
+            print(wholesale_catalog[i])
+            if wholesale_catalog[i].sku == "SMALL_RED_BARREL":
+                if data.num_red_potions < 10 and wholesale_catalog[i].price <= data.gold and wholesale_catalog[i].quantity > 0:
+                    print(f"Planning to purchase {wholesale_catalog[i]}")
+                    return [
+                        {
+                            "sku": wholesale_catalog[i].sku,
+                            "quantity": 1
+                        }
+                    ]
+        return []

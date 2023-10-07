@@ -14,9 +14,10 @@ router = APIRouter(
 
 @router.get("/inventory")
 def get_inventory():
-    data = util.get_shop_data()
+    with db.engine.begin() as connection:
+        data = util.get_shop_data(connection)
     
-    return {"number_of_potions": data.num_red_potions, "ml_in_barrels": data.num_red_ml, "gold": data.gold}
+        return {"number_of_potions": data.num_red_potions, "ml_in_barrels": data.num_red_ml, "gold": data.gold}
 
 class Result(BaseModel):
     gold_match: bool

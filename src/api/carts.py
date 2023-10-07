@@ -19,26 +19,26 @@ class NewCart(BaseModel):
 @router.post("/")
 def create_cart(new_cart: NewCart):
     print("Calling create_cart")
-    set_sql = """INSERT INTO carts (customer_name) VALUES ('{}') RETURNING id""".format(new_cart.customer)
     with db.engine.begin() as connection:
+        set_sql = f"""INSERT INTO carts (customer_name) VALUES ('{new_cart.customer}') RETURNING id"""
         result = connection.execute(sqlalchemy.text(set_sql))
-    data = result.first()
+        cart_id = result.first()
 
-    cart_data = util.get_cart_data(data.id)
-    print("Created cart for {}".format(cart_data.customer_name))
+        cart_data = util.get_cart_data(connection, cart_id.id)
+        print(f"Created cart for {cart_data.customer_name}")
 
-    return {"cart_id": data.id}
+        return {"cart_id": cart_id.id}
 
 
 @router.get("/{cart_id}")
 def get_cart(cart_id: int):
     print("Calling get_cart")
-    qry_sql = """SELECT id, customer_name, red_potion_0, payment FROM carts WHERE id = {}""".format(cart_id)
     with db.engine.begin() as connection:
+        qry_sql = f"""SELECT id, customer_name, red_potion_0, payment FROM carts WHERE id = {cart_id}"""
         result = connection.execute(sqlalchemy.text(qry_sql))
-    data = result.first()
-    
-    return data._asdict()
+        data = result.first()
+        
+        return data._asdict()
 
 
 class CartItem(BaseModel):
@@ -48,14 +48,18 @@ class CartItem(BaseModel):
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     print("Calling set_item_quantity")
-    
-    set_sql = """UPDATE carts SET {} = {} WHERE id = {}""".format(item_sku, cart_item.quantity, cart_id)
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(set_sql))
-    cart_entry = util.get_cart_data(cart_id)
-    print("Cart {} for {} requests {} potions".format(cart_id, cart_entry.customer_name, cart_entry.red_potion_0))
+        shop_data = util.get_shop_data(connection)
+        if shop_data.num_red_potions < cart_item.quantity:
+            print("Cannot fulfill order")
+            raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.")
+        
+        set_sql = f"""UPDATE carts SET {item_sku} = {cart_item.quantity} WHERE id = {cart_id}"""
+        connection.execute(sqlalchemy.text(set_sql))
+        cart_entry = util.get_cart_data(connection, cart_id)
+        print(f"Cart {cart_id} for {cart_entry.customer_name} requests {cart_entry.red_potion_0} potions")
 
-    return "OK"
+        return "OK"
 
 
 class CartCheckout(BaseModel):
@@ -64,31 +68,26 @@ class CartCheckout(BaseModel):
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     print("Calling checkout")
-
-    shop_data = util.get_shop_data()
-    cart_data = util.get_cart_data(cart_id)
-    potions_sold = cart_data.red_potion_0
-    gold_earned = 50 * cart_data.red_potion_0
-
-    print("gold before transation: {}".format(shop_data.gold))
-    print("num_red_potions in shop: {}\nnum_red_potions requested in cart: {}".format(
-        shop_data.num_red_potions, cart_data.red_potion_0))
-    if shop_data.num_red_potions < cart_data.red_potion_0:
-        print("Cannot fulfill order")
-        raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.") 
-       
-    set_transaction_sql = """UPDATE global_inventory SET num_red_potions = {},
-    gold = {}""".format(shop_data.num_red_potions - potions_sold, shop_data.gold + gold_earned)
     with db.engine.begin() as connection:
+        shop_data = util.get_shop_data(connection)
+        cart_data = util.get_cart_data(connection, cart_id)
+        potions_sold = cart_data.red_potion_0
+        gold_earned = 50 * cart_data.red_potion_0
+        print(f"num_red_potions requested in cart: {cart_data.red_potion_0}")
+
+        if shop_data.num_red_potions < cart_data.red_potion_0:
+            print("Cannot fulfill order")
+            raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.") 
+        
+        set_transaction_sql = f"""UPDATE global_inventory SET 
+        num_red_potions = num_red_potions - {potions_sold}, gold = gold + {gold_earned}"""
         connection.execute(sqlalchemy.text(set_transaction_sql))
 
-    shop_data = util.get_shop_data()
-    print("Transaction completed:\nnum_potions_remaining: {}, gold_after_earnings: {}".format(
-        shop_data.num_red_potions, shop_data.gold))
-    
-    store_payment_sql = """UPDATE carts SET payment = '{}' WHERE id = {}""".format(cart_checkout.payment, cart_id)
-    with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(store_payment_sql))
-    # delete_cart_sql = """DELETE FROM carts WHERE id = {}""".format(cart_id)
+        print("Transaction completed:")
+        util.get_shop_data(connection)
 
-    return {"total_potions_bought": potions_sold, "total_gold_paid": gold_earned}
+        store_payment_sql = f"""UPDATE carts SET payment = '{cart_checkout.payment}' WHERE id = {cart_id}"""
+        connection.execute(sqlalchemy.text(store_payment_sql))
+        # delete_cart_sql = """DELETE FROM carts WHERE id = {}""".format(cart_id)
+
+        return {"total_potions_bought": potions_sold, "total_gold_paid": gold_earned}
