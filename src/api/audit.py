@@ -17,7 +17,11 @@ def get_inventory():
     with db.engine.begin() as connection:
         data = util.get_shop_data(connection)
     
-        return {"number_of_potions": data.num_red_potions, "ml_in_barrels": data.num_red_ml, "gold": data.gold}
+        return {
+            "number_of_potions": data.num_red_potions + data.num_green_potions + data.num_blue_potions,
+            "ml_in_barrels": data.num_red_ml + data.num_green_ml + data.num_blue_ml, 
+            "gold": data.gold
+        }
 
 class Result(BaseModel):
     gold_match: bool
