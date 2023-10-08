@@ -29,6 +29,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
     with db.engine.begin() as connection:
         print("Pre-barrel-delivery:")
         util.get_shop_data(connection)
+        # Update shop inventory; exchange gold for each barrel bought
         for i in range(len(barrels_delivered)):
             color = barrels_delivered[i].sku.split('_')[1]
             set_sql = f"""UPDATE global_inventory 
@@ -40,6 +41,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
         print("Post-barrel-delivery:")
         data = util.get_shop_data(connection)
 
+        # Catch any silly errors in my logic
         if data.gold >= 0:
             return "OK"  
         else:

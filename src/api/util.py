@@ -8,7 +8,7 @@ def get_shop_data(connection):
     print(f"num_red_potions: {data.num_red_potions}, num_red_ml: {data.num_red_ml},"
           f"\nnum_green_potions: {data.num_green_potions}, num_green_ml: {data.num_green_ml},"
           f"\nnum_blue_potions: {data.num_blue_potions}, num_blue_ml: {data.num_blue_ml}," 
-          f"\ngold: {data.gold}")
+          f"\ngold: {data.gold}\n")
 
     return data
 
