@@ -58,12 +58,12 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
         shop_data = util.get_shop_data(connection)
         
         # Verify that requested items are in stock
-        if getattr(shop_data, f"num_{item_sku}s") < cart_item.quantity:
+        if getattr(shop_data, f"num_{item_sku.lower()}s") < cart_item.quantity:
             print("Cannot fulfill order")
             raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.")
         
         # Add items to cart
-        set_sql = f"""UPDATE carts SET {item_sku} = {cart_item.quantity} WHERE id = {cart_id}"""
+        set_sql = f"""UPDATE carts SET {item_sku.lower()} = {cart_item.quantity} WHERE id = {cart_id}"""
         connection.execute(sqlalchemy.text(set_sql))
         cart_entry = util.get_cart_data(connection, cart_id)
         print(f"Cart {cart_id} for {cart_entry.customer_name} requests {cart_item.quantity} {item_sku}(s)\n")
@@ -80,7 +80,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     print("\nCalling checkout")
     with db.engine.begin() as connection:
         # Get data and initialize variables
-        print("Pre-checkout shop inventory:")
+        print("\nPre-checkout shop inventory:")
         shop_data = util.get_shop_data(connection)
         cart_data = util.get_cart_data(connection, cart_id)
         colors = [("red", 50), ("green", 50), ("blue", 60)]
