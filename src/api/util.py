@@ -13,7 +13,7 @@ def get_shop_data(connection):
     return data
 
 def get_cart_data(connection, cart_id):
-    qry_sql = f"""SELECT customer_name, red_potion_0 FROM carts WHERE id = {cart_id}"""
+    qry_sql = f"""SELECT customer_name, red_potion, green_potion, blue_potion, time FROM carts WHERE id = {cart_id}"""
     result = connection.execute(sqlalchemy.text(qry_sql))
     data = result.first()
 
