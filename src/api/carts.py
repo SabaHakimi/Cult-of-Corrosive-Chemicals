@@ -83,7 +83,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         print("\nPre-checkout shop inventory:")
         shop_data = util.get_shop_data(connection)
         cart_data = util.get_cart_data(connection, cart_id)
-        colors = [("red", 50), ("green", 50), ("blue", 60)]
+        colors = [("red", 50), ("green", 50), ("blue", 50)]
         total_potions_sold = 0
         total_gold_earned = 0
         sql_statements = []
