@@ -67,8 +67,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print("\nCalling get_wholesale_purchase_plan")
     with db.engine.begin() as connection:
         # Pull data from DB and log current values
-        util.get_liquids_or_potions_data(connection, "liquids")
-        util.get_liquids_or_potions_data(connection, "potions")
+        util.get_liquids_data(connection)
+        util.get_potions_data(connection)
         expendable_gold = util.get_shop_gold(connection)
  
         print("\nWholesale Catalog:")

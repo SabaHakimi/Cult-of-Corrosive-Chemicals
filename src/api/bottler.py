@@ -38,7 +38,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
             WHERE type = :potion_type"""), [{"num_potions_made": num_potions_made, "potion_type": potions_delivered[i].potion_type}])
             
             for j in range(len(potions_delivered[i].potion_type)):
-                print(f"{potions_delivered[i].potion_type[j]} ml of liquid {j + 1} expended")
+                print(f"{potions_delivered[i].potion_type[j] * potions_delivered[i].quantity} ml of liquid {j + 1} expended")
                 connection.execute(sqlalchemy.text("""UPDATE liquids
                 SET quantity = quantity - :num_ml_expended
                 WHERE id = :liquid"""), [{"num_ml_expended": potions_delivered[i].potion_type[j] * potions_delivered[i].quantity, "liquid": j + 1}])
