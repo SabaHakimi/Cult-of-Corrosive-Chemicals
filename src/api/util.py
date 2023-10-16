@@ -6,10 +6,10 @@ def get_shop_gold(connection):
     return connection.execute(sqlalchemy.text("""SELECT gold FROM inventory""")).scalar_one()
 
 def get_liquids_data(connection):
-    return connection.execute(sqlalchemy.text(f"SELECT type, quantity FROM liquids"))
+    return connection.execute(sqlalchemy.text("SELECT type, quantity FROM liquids"))
     
 def get_potions_data(connection):
-    return connection.execute(sqlalchemy.text(f"SELECT sku, type, quantity FROM potions"))
+    return connection.execute(sqlalchemy.text("SELECT sku, type, quantity FROM potions"))
 
 def log_shop_data(connection):
     liquids_data = get_liquids_data(connection)

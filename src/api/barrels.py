@@ -39,7 +39,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
             SET quantity = quantity + :added_quantity
             WHERE type = :type"""), 
             [{"added_quantity": added_quantity, "type": type}])
-            connection.execute(sqlalchemy.text(f"""UPDATE inventory SET gold = gold - :price"""), [{"price": price}])
+            connection.execute(sqlalchemy.text("UPDATE inventory SET gold = gold - :price"), [{"price": price}])
             
             print(f"type: {type}, ml_added_from_barrel: {added_quantity}")
 
