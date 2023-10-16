@@ -15,12 +15,22 @@ router = APIRouter(
 @router.get("/inventory")
 def get_inventory():
     with db.engine.begin() as connection:
-        data = util.get_shop_data(connection)
+        gold = util.get_shop_gold(connection)
+        
+        potions_inventory = util.get_potions_data(connection)
+        num_potions = 0
+        for potion in potions_inventory:
+            num_potions += potion.quantity
+
+        liquids_inventory = util.get_liquids_data(connection)
+        num_ml = 0
+        for liquid in liquids_inventory:
+            num_ml += liquid.quantity
     
         return {
-            "number_of_potions": data.num_red_potions + data.num_green_potions + data.num_blue_potions,
-            "ml_in_barrels": data.num_red_ml + data.num_green_ml + data.num_blue_ml, 
-            "gold": data.gold
+            "number_of_potions": num_potions,
+            "ml_in_barrels": num_ml, 
+            "gold": gold
         }
 
 class Result(BaseModel):

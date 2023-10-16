@@ -11,29 +11,23 @@ def get_catalog():
     """
     Each unique item combination must have only a single price.
     """
-    # Initialize Variables
-    catalog = []
-    potion_mapping = {
-        "red": [100, 0, 0, 0],
-        "green": [0, 100, 0, 0],
-        "blue": [0, 0, 100, 0]
-    }
     # Can return a max of 20 items.
     # Main Logic
     with db.engine.begin() as connection:
         print("\nInventory:")
-        data = util.get_shop_data(connection)
+        util.log_shop_data(connection)
+        catalog = []
+        potions_inventory = util.get_potions_data(connection)
 
         # Add each potion type to the cart, if available
-        for potion_color, potion_type in potion_mapping.items():
-            num_potions = getattr(data, f'num_{potion_color}_potions')
-            if num_potions > 0:
+        for potion in potions_inventory:
+            if potion.quantity > 0:
                 catalog_entry = {
-                            "sku": f"{potion_color.upper()}_POTION",
-                            "name": f"{potion_color} potion",
-                            "quantity": num_potions,
+                            "sku": potion.sku,
+                            "name": potion.sku,
+                            "quantity": potion.quantity,
                             "price": 50,
-                            "potion_type": potion_type,
+                            "potion_type": potion.type,
                         }
                 catalog.append(catalog_entry)
 

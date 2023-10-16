@@ -24,25 +24,30 @@ class Barrel(BaseModel):
 @router.post("/deliver")
 def post_deliver_barrels(barrels_delivered: list[Barrel]):
     # Main Logic
-    print("Calling post_deliver_barrels")
-    print(f"barrels_delivered:\n{barrels_delivered}")
+    print("\nCalling post_deliver_barrels")
+    print(f"\nbarrels_delivered:\n{barrels_delivered}")
     with db.engine.begin() as connection:
-        print("Pre-barrel-delivery:")
-        util.get_shop_data(connection)
+        print("\nPre-barrel-delivery:")
+        util.log_shop_data(connection)
+        print("\n")
         # Update shop inventory; exchange gold for each barrel bought
         for i in range(len(barrels_delivered)):
-            color = barrels_delivered[i].sku.split('_')[1]
-            set_sql = f"""UPDATE global_inventory 
-            SET num_{color}_ml = num_{color}_ml + {barrels_delivered[i].ml_per_barrel * barrels_delivered[i].quantity}, 
-            gold = gold - {barrels_delivered[i].price * barrels_delivered[i].quantity}"""
-            connection.execute(sqlalchemy.text(set_sql))
-            print(f"ml_added_from_barrel: {barrels_delivered[i].ml_per_barrel * barrels_delivered[i].quantity}, price: {barrels_delivered[i].price * barrels_delivered[i].quantity}")
+            type = [x * 100 for x in barrels_delivered[i].potion_type]
+            added_quantity = barrels_delivered[i].ml_per_barrel * barrels_delivered[i].quantity
+            price = barrels_delivered[i].price * barrels_delivered[i].quantity
+            connection.execute(sqlalchemy.text("""UPDATE liquids 
+            SET quantity = quantity + :added_quantity
+            WHERE type = :type"""), 
+            [{"added_quantity": added_quantity, "type": type}])
+            connection.execute(sqlalchemy.text(f"""UPDATE inventory SET gold = gold - :price"""), [{"price": price}])
+            
+            print(f"type: {type}, ml_added_from_barrel: {added_quantity}")
 
-        print("Post-barrel-delivery:")
-        data = util.get_shop_data(connection)
+        print("\nPost-barrel-delivery:")
+        util.log_shop_data(connection)
 
         # Catch any silly errors in my logic
-        if data.gold >= 0:
+        if util.get_shop_gold(connection) >= 0:
             return "OK"  
         else:
             print("Uh-oh, time to declare bankruptcy.")
@@ -59,13 +64,14 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     price_threshold = -1
 
     # Main Logic
-    print("Calling get_wholesale_purchase_plan")
+    print("\nCalling get_wholesale_purchase_plan")
     with db.engine.begin() as connection:
-        # Pull data from DB
-        data = util.get_shop_data(connection)
-        expendable_gold = data.gold
+        # Pull data from DB and log current values
+        util.get_liquids_or_potions_data(connection, "liquids")
+        util.get_liquids_or_potions_data(connection, "potions")
+        expendable_gold = util.get_shop_gold(connection)
  
-        print("Wholesale Catalog:")
+        print("\nWholesale Catalog:")
         # Iterate through catalog and determine purchase plan
         for i in range(len(wholesale_catalog)):
             print(wholesale_catalog[i])

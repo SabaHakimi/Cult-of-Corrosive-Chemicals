@@ -1,20 +1,27 @@
 import sqlalchemy
 from src import database as db
+from fastapi import HTTPException
 
-def get_shop_data(connection):
-    qry_sql = """SELECT num_red_potions, num_red_ml, num_green_potions, num_green_ml, num_blue_potions, num_blue_ml, gold FROM global_inventory"""    
-    result = connection.execute(sqlalchemy.text(qry_sql))
-    data = result.first()
-    print(f"num_red_potions: {data.num_red_potions}, num_red_ml: {data.num_red_ml},"
-          f"\nnum_green_potions: {data.num_green_potions}, num_green_ml: {data.num_green_ml},"
-          f"\nnum_blue_potions: {data.num_blue_potions}, num_blue_ml: {data.num_blue_ml}," 
-          f"\ngold: {data.gold}\n")
+def get_shop_gold(connection):
+    return connection.execute(sqlalchemy.text("""SELECT gold FROM inventory""")).scalar_one()
 
-    return data
+def get_liquids_data(connection):
+    return connection.execute(sqlalchemy.text(f"SELECT type, quantity FROM liquids"))
+    
+def get_potions_data(connection):
+    return connection.execute(sqlalchemy.text(f"SELECT sku, type, quantity FROM potions"))
+
+def log_shop_data(connection):
+    liquids_data = get_liquids_data(connection)
+    print(f"\nCurrent liquids inventory:")
+    for item in liquids_data:
+        print(f"type: {item.type}, quantity: {item.quantity},")
+    potions_data = get_potions_data(connection)
+    print(f"\nCurrent potions inventory:")
+    for item in potions_data:
+        print(f"sku: {item.sku}, type: {item.type}, quantity: {item.quantity},")
+    gold = get_shop_gold(connection)
+    print(f"\nCurrent gold: {gold}")
 
 def get_cart_data(connection, cart_id):
-    qry_sql = f"""SELECT customer_name, red_potion, green_potion, blue_potion, time FROM carts WHERE id = {cart_id}"""
-    result = connection.execute(sqlalchemy.text(qry_sql))
-    data = result.first()
-
-    return data
+    return connection.execute(sqlalchemy.text("SELECT customer_name, payment, timestamp FROM carts WHERE id = :id"), [{"id": cart_id}]).first()
