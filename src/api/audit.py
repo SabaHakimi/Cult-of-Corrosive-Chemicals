@@ -17,15 +17,15 @@ def get_inventory():
     with db.engine.begin() as connection:
         gold = util.get_shop_gold(connection)
         
-        potions_inventory = util.get_potions_data(connection)
-        num_potions = 0
-        for potion in potions_inventory:
-            num_potions += potion.quantity
+        num_potions = connection.execute(sqlalchemy.text("""
+            SELECT COALESCE(SUM(change), 0) as quantity
+            FROM potions_ledger
+        """)).scalar_one()
 
-        liquids_inventory = util.get_liquids_data(connection)
-        num_ml = 0
-        for liquid in liquids_inventory:
-            num_ml += liquid.quantity
+        num_ml = connection.execute(sqlalchemy.text("""
+            SELECT COALESCE(SUM(change), 0) as quantity
+            FROM liquids_ledger
+        """)).scalar_one()
     
         return {
             "number_of_potions": num_potions,

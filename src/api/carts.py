@@ -56,7 +56,7 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
         
         # Verify that requested items are in stock
         num_in_inventory = connection.execute(sqlalchemy.text("""
-            SELECT SUM(change) 
+            SELECT COALESCE(SUM(change), 0)
             FROM potions_ledger 
             WHERE potion_sku = :item_sku"""), 
             [{"item_sku": item_sku}]).scalar_one()
@@ -98,7 +98,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         potion_sql_statement_args = []
 
         items_in_cart = connection.execute(sqlalchemy.text("""
-            SELECT cart_items.potions_fkey, cart_items.quantity, SUM(potions_ledger.change) AS num_in_inventory
+            SELECT cart_items.potions_fkey, cart_items.quantity, COALESCE(SUM(potions_ledger.change), 0) AS num_in_inventory
             FROM cart_items
             LEFT JOIN potions_ledger ON cart_items.potions_fkey = potions_ledger.potion_sku
             WHERE cart_items.cart_fkey = :cart_id

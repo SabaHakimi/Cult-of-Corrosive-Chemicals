@@ -95,13 +95,13 @@ def get_bottle_plan():
 
         # Determine mixable amount of liquid
         num_potions = connection.execute(sqlalchemy.text("""
-            SELECT SUM(change) as quantity
+            SELECT COALESCE(SUM(change), 0) as quantity
             FROM potions_ledger
         """)).scalar_one()
         print(f"num_total_potions: {num_potions}")
 
         total_ml = connection.execute(sqlalchemy.text("""
-            SELECT SUM(change) as quantity
+            SELECT COALESCE(SUM(change), 0) as quantity
             FROM liquids_ledger
         """)).scalar_one()
 
@@ -113,9 +113,12 @@ def get_bottle_plan():
         potion_plan = []
         mix_all = True
         
-        for item in ml_data:
-            if item['quantity'] - (ml_over_capacity // 3) < 600:
-                mix_all = False
+        if len(ml_data) < 3:
+            mix_all = False
+        else:
+            for item in ml_data:
+                if item['quantity'] - (ml_over_capacity // 3) < 600:
+                    mix_all = False
 
         if mix_all:
             potions = connection.execute(sqlalchemy.text("SELECT type FROM potions"))

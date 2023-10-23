@@ -22,7 +22,7 @@ def get_catalog():
         # Add each potion type to the cart, if available
         for sku, type, price in potions_catalog:
             quantity = connection.execute(sqlalchemy.text("""
-                SELECT SUM(change)
+                SELECT COALESCE(SUM(change), 0)
                 FROM potions_ledger
                 WHERE potion_sku = :sku"""),
             [{"sku": sku}]).scalar_one()
