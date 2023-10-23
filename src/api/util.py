@@ -3,25 +3,41 @@ from src import database as db
 from fastapi import HTTPException
 
 def get_shop_gold(connection):
-    return connection.execute(sqlalchemy.text("""SELECT gold FROM inventory""")).scalar_one()
+    return connection.execute(sqlalchemy.text("""
+        SELECT SUM(change)
+        FROM gold_ledger
+    """)).scalar_one()
 
 def get_liquids_data(connection):
-    return connection.execute(sqlalchemy.text("SELECT type, quantity FROM liquids"))
-    
+    return [x._asdict() for x in connection.execute(sqlalchemy.text("""
+        SELECT liquid_type, SUM(change) as quantity
+        FROM liquids_ledger
+        GROUP BY liquid_type
+    """)).all()]
+
 def get_potions_data(connection):
-    return connection.execute(sqlalchemy.text("SELECT sku, type, quantity FROM potions"))
+    return [x._asdict() for x in connection.execute(sqlalchemy.text("""
+        SELECT potion_sku, SUM(change) as quantity
+        FROM potions_ledger
+        GROUP BY potion_sku
+    """)).all()]
 
 def log_shop_data(connection):
+    # Log liquids data
     liquids_data = get_liquids_data(connection)
     print(f"\nCurrent liquids inventory:")
     for item in liquids_data:
-        print(f"type: {item.type}, quantity: {item.quantity},")
+        print(f"type: {item['liquid_type']}, quantity: {item['quantity']}")
+    
+    # Log potions data
     potions_data = get_potions_data(connection)
     print(f"\nCurrent potions inventory:")
     for item in potions_data:
-        print(f"sku: {item.sku}, type: {item.type}, quantity: {item.quantity},")
+        print(f"type: {item['potion_sku']}, quantity: {item['quantity']}")
+    
+    # Log gold
     gold = get_shop_gold(connection)
-    print(f"\nCurrent gold: {gold}")
+    print(f"\nCurrent gold: {gold}\n")
 
 def get_cart_data(connection, cart_id):
     return connection.execute(sqlalchemy.text("SELECT customer_name, payment, timestamp FROM carts WHERE id = :id"), [{"id": cart_id}]).first()

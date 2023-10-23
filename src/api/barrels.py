@@ -29,19 +29,37 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
     with db.engine.begin() as connection:
         print("\nPre-barrel-delivery:")
         util.log_shop_data(connection)
-        print("\n")
         # Update shop inventory; exchange gold for each barrel bought
+        print("Barrels mixed into inventory:")
         for i in range(len(barrels_delivered)):
-            type = [x * 100 for x in barrels_delivered[i].potion_type]
-            added_quantity = barrels_delivered[i].ml_per_barrel * barrels_delivered[i].quantity
-            price = barrels_delivered[i].price * barrels_delivered[i].quantity
-            connection.execute(sqlalchemy.text("""UPDATE liquids 
-            SET quantity = quantity + :added_quantity
-            WHERE type = :type"""), 
-            [{"added_quantity": added_quantity, "type": type}])
-            connection.execute(sqlalchemy.text("UPDATE inventory SET gold = gold - :price"), [{"price": price}])
+            # Add new transaction
+            transaction_id = connection.execute(sqlalchemy.text("""
+                INSERT INTO transactions (description)
+                VALUES ('Barrel Purchase')
+                RETURNING id
+            """)).first().id
             
-            print(f"type: {type}, ml_added_from_barrel: {added_quantity}")
+            # Update liquids ledger
+            added_quantity = barrels_delivered[i].ml_per_barrel * barrels_delivered[i].quantity
+            liquid_color = barrels_delivered[i].sku.split('_')[1].lower()
+            connection.execute(sqlalchemy.text("""
+                INSERT INTO liquids_ledger (transaction_id, liquid_type, change)
+                VALUES (:transaction_id, :liquid_type, :change)
+            """), 
+            [{"transaction_id": transaction_id, 
+              "liquid_type": liquid_color, 
+              "change": added_quantity}])
+            
+            # Update gold ledger
+            price = barrels_delivered[i].price * barrels_delivered[i].quantity * -1
+            connection.execute(sqlalchemy.text("""
+                INSERT INTO gold_ledger (transaction_id, change)
+                VALUES (:transaction_id, :change)
+            """), 
+            [{"transaction_id": transaction_id,  
+              "change": price}])
+            
+            print(f"type: {liquid_color}, ml_added_from_barrel: {added_quantity}")
 
         print("\nPost-barrel-delivery:")
         util.log_shop_data(connection)
@@ -58,6 +76,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     # Initialize Variables
+    # large_validation_set = {"LARGE_RED_BARREL", "LARGE_GREEN_BARREL", "LARGE_BLUE_BARREL"}
     medium_validation_set = {"MEDIUM_RED_BARREL", "MEDIUM_GREEN_BARREL", "MEDIUM_BLUE_BARREL"}
     small_validation_set = {"SMALL_RED_BARREL", "SMALL_GREEN_BARREL", "SMALL_BLUE_BARREL"}
     purchase_plan = []
@@ -67,9 +86,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print("\nCalling get_wholesale_purchase_plan")
     with db.engine.begin() as connection:
         # Pull data from DB and log current values
-        util.get_liquids_data(connection)
-        util.get_potions_data(connection)
         expendable_gold = util.get_shop_gold(connection)
+        print(f"\ngold: {expendable_gold}")
  
         print("\nWholesale Catalog:")
         # Iterate through catalog and determine purchase plan
@@ -84,12 +102,12 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 continue
             # Add item to purchase plan if it can be purchased
             if wholesale_catalog[i].quantity > 0 and expendable_gold >= price_threshold:
-                print(f"Planning to purchase {wholesale_catalog[i]}")
                 purchase_plan.append(
                     {
                         "sku": wholesale_catalog[i].sku,
                         "quantity": 1
                     })
                 expendable_gold -= wholesale_catalog[i].price
-                
+
+        print(f"\nPurchase plan: {purchase_plan}")      
         return purchase_plan
