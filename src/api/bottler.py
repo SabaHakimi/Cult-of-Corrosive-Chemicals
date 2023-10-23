@@ -18,9 +18,9 @@ class PotionInventory(BaseModel):
 
 @router.post("/deliver")
 def post_deliver_bottles(potions_delivered: list[PotionInventory]):
-    # Main Logic
     print("\nCalling post_deliver_bottles")
     with db.engine.begin() as connection:
+        # Logging 
         print("\npotions_delivered:")
         for potion in potions_delivered:
             print(potion)
@@ -29,19 +29,39 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
 
         # Mix all potions and expend ml appropriately
         print("\nMixing:")
+        
+        liquid_mapping = ["red", "green", "blue", "dark"]
+
         for i in range(len(potions_delivered)):
             num_potions_made = potions_delivered[i].quantity
-            print(f"{num_potions_made} potions of type {potions_delivered[i].potion_type} made")
+            potion_type = potions_delivered[i].potion_type
+            print(f"{num_potions_made} potions of type {potion_type} made")
 
-            connection.execute(sqlalchemy.text("""UPDATE potions
-            SET quantity = quantity + :num_potions_made
-            WHERE type = :potion_type"""), [{"num_potions_made": num_potions_made, "potion_type": potions_delivered[i].potion_type}])
+            transaction_id = connection.execute(sqlalchemy.text("""
+                INSERT INTO transactions (description)
+                VALUES ('Mixing potions')
+                RETURNING id
+            """)).first().id
+
+            connection.execute(sqlalchemy.text("""
+                INSERT INTO potions_ledger (transaction_id, potion_sku, change)
+                VALUES (:transaction_id, (SELECT sku FROM potions WHERE type = :potion_type), :change)
+            """),
+            [{"transaction_id": transaction_id, 
+              "potion_type": potion_type, 
+              "change": num_potions_made}])
             
             for j in range(len(potions_delivered[i].potion_type)):
-                print(f"{potions_delivered[i].potion_type[j] * potions_delivered[i].quantity} ml of liquid {j + 1} expended")
-                connection.execute(sqlalchemy.text("""UPDATE liquids
-                SET quantity = quantity - :num_ml_expended
-                WHERE id = :liquid"""), [{"num_ml_expended": potions_delivered[i].potion_type[j] * potions_delivered[i].quantity, "liquid": j + 1}])
+                change = potions_delivered[i].potion_type[j] * potions_delivered[i].quantity
+                print(f"{change} ml of {liquid_mapping[j]} liquid expended")
+                if (change is not 0):
+                    connection.execute(sqlalchemy.text("""
+                        INSERT INTO liquids_ledger (transaction_id, liquid_type, change)
+                        VALUES (:transaction_id, :liquid_type, :change)
+                    """),
+                    [{"transaction_id": transaction_id, 
+                    "liquid_type": liquid_mapping[j], 
+                    "change": change * -1}])
             print("\n")
 
         print("\nPost-mix:")
@@ -50,7 +70,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
         # Error catching
         data = util.get_liquids_data(connection)
         for item in data:
-            if item.quantity < 0:
+            if item['quantity'] < 0:
                 print("Mixed potions from nonexistent liquid...Probably not a good idea to create matter out of nothing.")
                 raise HTTPException(status_code=400, detail="Spent more ml than is available.") 
 
@@ -64,40 +84,39 @@ def get_bottle_plan():
     """
     # Each bottle has a quantity of what proportion of red, blue, and green potion to add.
     # Expressed in integers from 1 to 100 that must sum up to 100.
-    # Initialize Variables
-    potion_plan = []
 
-    # Main Logic
     print("\nCalling get_bottle_plan")
     with db.engine.begin() as connection:
-        # Pull data from DB and log
+        # Logging
         util.log_shop_data(connection)
 
-        red_ml = connection.execute(sqlalchemy.text("""SELECT quantity FROM liquids WHERE type = :type"""), [{"type": [100,0,0,0]}]).scalar_one()
-        green_ml = connection.execute(sqlalchemy.text("""SELECT quantity FROM liquids WHERE type = :type"""), [{"type": [0,100,0,0]}]).scalar_one()
-        blue_ml = connection.execute(sqlalchemy.text("""SELECT quantity FROM liquids WHERE type = :type"""), [{"type": [0,0,100,0]}]).scalar_one()
-
-        potions = util.get_potions_data(connection)
-        num_potions = 0
-        for potion in potions:
-            num_potions += potion.quantity
-        print(f"\nnum_total_potions: {num_potions}")
-
         # Determine mixable amount of liquid
-        total_ml = red_ml + green_ml + blue_ml
-        total_potion_cnt_after_mix = (total_ml // 100) + num_potions
-        ml_over_capacity = (total_potion_cnt_after_mix - 300) * 100
+        num_potions = connection.execute(sqlalchemy.text("""
+            SELECT SUM(change) as quantity
+            FROM potions_ledger
+        """)).scalar_one()
+        print(f"num_total_potions: {num_potions}")
 
-        if ml_over_capacity > 0:
-            red_ml -= ml_over_capacity // 3
-            green_ml -= ml_over_capacity // 3
-            blue_ml -= ml_over_capacity // 3
+        total_ml = connection.execute(sqlalchemy.text("""
+            SELECT SUM(change) as quantity
+            FROM liquids_ledger
+        """)).scalar_one()
+
+        total_potion_cnt_after_mix = (total_ml // 100) + (num_potions if num_potions is not None else 0)
+        ml_over_capacity = max(0, (total_potion_cnt_after_mix - 300) * 100)
 
         # Mixing
+        ml_data = util.get_liquids_data(connection)
         potion_plan = []
-        if red_ml >= 600 and green_ml >= 600 and blue_ml >= 600:
-            potions = util.get_potions_data(connection)
-            num_to_mix_per_type = min(red_ml // 200, green_ml // 200, blue_ml // 200)
+        mix_all = True
+        
+        for item in ml_data:
+            if item['quantity'] - (ml_over_capacity // 3) < 600:
+                mix_all = False
+
+        if mix_all:
+            potions = connection.execute(sqlalchemy.text("SELECT type FROM potions"))
+            num_to_mix_per_type = min(ml_data[0]['quantity'] // 200, ml_data[1]['quantity'] // 200, ml_data[2]['quantity'] // 200)
             print(f"num_to_mix_per_type: {num_to_mix_per_type}")
             for potion in potions:
                 potion_plan.append(
@@ -108,12 +127,17 @@ def get_bottle_plan():
                 )
         else:
             liquids = util.get_liquids_data(connection)
+            liquid_mapping = {
+                "red": [100, 0, 0, 0],
+                "green": [0, 100, 0, 0],
+                "blue": [0, 0, 100, 0]
+            }
             for liquid in liquids:
-                if liquid.quantity >= 100:
+                if liquid['quantity'] >= 100:
                     potion_plan.append(
                         {
-                            "potion_type": liquid.type,
-                            "quantity": min(5, liquid.quantity // 100)
+                            "potion_type": liquid_mapping[liquid['liquid_type']],
+                            "quantity": min(5, liquid['quantity'] // 100)
                         }
                     )
 
