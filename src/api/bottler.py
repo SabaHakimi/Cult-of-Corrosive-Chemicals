@@ -57,7 +57,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
             for j in range(len(potions_delivered[i].potion_type)):
                 change = potions_delivered[i].potion_type[j] * potions_delivered[i].quantity
                 print(f"{change} ml of {liquid_mapping[j]} liquid expended")
-                if (change is not 0):
+                if (change != 0):
                     connection.execute(sqlalchemy.text("""
                         INSERT INTO liquids_ledger (transaction_id, liquid_type, change)
                         VALUES (:transaction_id, :liquid_type, :change)
