@@ -4,20 +4,20 @@ from fastapi import HTTPException
 
 def get_shop_gold(connection):
     return connection.execute(sqlalchemy.text("""
-        SELECT SUM(change)
+        SELECT COALESCE(SUM(change), 0)
         FROM gold_ledger
     """)).scalar_one()
 
 def get_liquids_data(connection):
     return [x._asdict() for x in connection.execute(sqlalchemy.text("""
-        SELECT liquid_type, SUM(change) as quantity
+        SELECT liquid_type, COALESCE(SUM(change), 0) as quantity
         FROM liquids_ledger
         GROUP BY liquid_type
     """)).all()]
 
 def get_potions_data(connection):
     return [x._asdict() for x in connection.execute(sqlalchemy.text("""
-        SELECT potion_sku, SUM(change) as quantity
+        SELECT potion_sku, COALESCE(SUM(change), 0) as quantity
         FROM potions_ledger
         GROUP BY potion_sku
     """)).all()]
