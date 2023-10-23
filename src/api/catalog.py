@@ -17,17 +17,23 @@ def get_catalog():
         print("\nInventory:")
         util.log_shop_data(connection)
         catalog = []
-        potions_inventory = util.get_potions_data(connection)
+        potions_catalog = connection.execute(sqlalchemy.text("SELECT sku, type, price FROM potions"))
 
         # Add each potion type to the cart, if available
-        for potion in potions_inventory:
-            if potion.quantity > 0:
+        for sku, type, price in potions_catalog:
+            quantity = connection.execute(sqlalchemy.text("""
+                SELECT SUM(change)
+                FROM potions_ledger
+                WHERE potion_sku = :sku"""),
+            [{"sku": sku}]).scalar_one()
+
+            if quantity > 0:
                 catalog_entry = {
-                            "sku": potion.sku,
-                            "name": potion.sku,
-                            "quantity": potion.quantity,
-                            "price": 50,
-                            "potion_type": potion.type,
+                            "sku": sku,
+                            "name": sku,
+                            "quantity": quantity,
+                            "price": price,
+                            "potion_type": type,
                         }
                 catalog.append(catalog_entry)
 
