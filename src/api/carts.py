@@ -97,15 +97,6 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         potion_sql_statements = []
         potion_sql_statement_args = []
 
-        '''items_in_cart = connection.execute(sqlalchemy.text("SELECT potions_fkey, quantity FROM cart_items WHERE cart_fkey = :cart_id"), [{"cart_id": cart_id}])
-        for item in items_in_cart:
-            # Verify that requested items are in stock
-            num_in_inventory = connection.execute(sqlalchemy.text("SELECT quantity FROM potions WHERE sku = :item_sku"), [{"item_sku": item.potions_fkey}]).scalar_one()
-            if num_in_inventory < item.quantity:
-                print("Cannot fulfill order")
-                raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.") 
-        '''
-
         items_in_cart = connection.execute(sqlalchemy.text("""
             SELECT cart_items.potions_fkey, cart_items.quantity, SUM(potions_ledger.change) AS num_in_inventory
             FROM cart_items
@@ -124,7 +115,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
             transaction_id = connection.execute(sqlalchemy.text("""
                 INSERT INTO transactions (description)
-                VALUES ('Barrel Purchase')
+                VALUES ('Cart checkout')
                 RETURNING id
             """)).first().id
 
