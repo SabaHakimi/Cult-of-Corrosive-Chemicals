@@ -37,12 +37,14 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
             potion_type = potions_delivered[i].potion_type
             print(f"{num_potions_made} potions of type {potion_type} made")
 
+            # Add new transaction
             transaction_id = connection.execute(sqlalchemy.text("""
                 INSERT INTO transactions (description)
                 VALUES ('Mixing potions')
                 RETURNING id
             """)).first().id
 
+            # Update potions ledger
             connection.execute(sqlalchemy.text("""
                 INSERT INTO potions_ledger (transaction_id, potion_sku, change)
                 VALUES (:transaction_id, (SELECT sku FROM potions WHERE type = :potion_type), :change)
@@ -51,6 +53,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
               "potion_type": potion_type, 
               "change": num_potions_made}])
             
+            # Update liquids ledger
             for j in range(len(potions_delivered[i].potion_type)):
                 change = potions_delivered[i].potion_type[j] * potions_delivered[i].quantity
                 print(f"{change} ml of {liquid_mapping[j]} liquid expended")

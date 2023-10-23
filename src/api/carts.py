@@ -22,9 +22,12 @@ def create_cart(new_cart: NewCart):
     # Main Logic
     print("\nCalling create_cart")
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("""INSERT INTO carts 
-        (customer_name) VALUES (:customer_name) RETURNING id"""), [{"customer_name": new_cart.customer}])
-        cart_id = result.first()
+        cart_id = connection.execute(sqlalchemy.text("""
+            INSERT INTO carts (customer_name) 
+            VALUES (:customer_name) 
+            RETURNING id
+        """), 
+        [{"customer_name": new_cart.customer}]).first()
 
         cart_data = util.get_cart_data(connection, cart_id.id)
         print(f"\nCreated cart for {cart_data.customer_name} at {cart_data.timestamp}\n")
@@ -46,22 +49,30 @@ class CartItem(BaseModel):
 
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
-    # Main Logic
     print("\nCalling set_item_quantity")
     with db.engine.begin() as connection:
         # Logging and get data from DB
         util.log_shop_data(connection)
         
         # Verify that requested items are in stock
-        num_in_inventory = connection.execute(sqlalchemy.text("SELECT quantity FROM potions WHERE sku = :item_sku"), [{"item_sku": item_sku}]).scalar_one()
+        num_in_inventory = connection.execute(sqlalchemy.text("""
+            SELECT SUM(change) 
+            FROM potions_ledger 
+            WHERE potion_sku = :item_sku"""), 
+            [{"item_sku": item_sku}]).scalar_one()
         if num_in_inventory < cart_item.quantity:
             print("Cannot fulfill order")
             raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.")
         
         # Add items to cart
-        connection.execute(sqlalchemy.text("""INSERT INTO cart_items (cart_fkey, potions_fkey, quantity)
-        VALUES (:cart_fkey, (SELECT sku FROM potions WHERE sku = :item_sku), :quantity)"""), 
-        [{"cart_fkey": cart_id, "item_sku": item_sku, "quantity": cart_item.quantity}])
+        connection.execute(sqlalchemy.text("""
+            INSERT INTO cart_items (cart_fkey, potions_fkey, quantity)
+            VALUES (:cart_fkey, (SELECT sku FROM potions WHERE sku = :item_sku), :quantity)
+        """), 
+        [{"cart_fkey": cart_id, 
+          "item_sku": item_sku, 
+          "quantity": cart_item.quantity}])
+        
         cart_entry = util.get_cart_data(connection, cart_id)
         print(f"Cart {cart_id} for {cart_entry.customer_name} requests {cart_item.quantity} {item_sku}(s)\n")
 
@@ -73,13 +84,11 @@ class CartCheckout(BaseModel):
 
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
-    # Main Logic
     print("\nCalling checkout")
     with db.engine.begin() as connection:
         # Log inventory and initialize variables
         print("\nPre-checkout:")
         util.log_shop_data(connection)
-        print("\n")
      
         total_potions_sold = 0
         total_gold_earned = 0
@@ -88,21 +97,54 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         potion_sql_statements = []
         potion_sql_statement_args = []
 
-        items_in_cart = connection.execute(sqlalchemy.text("SELECT potions_fkey, quantity FROM cart_items WHERE cart_fkey = :cart_id"), [{"cart_id": cart_id}])
+        '''items_in_cart = connection.execute(sqlalchemy.text("SELECT potions_fkey, quantity FROM cart_items WHERE cart_fkey = :cart_id"), [{"cart_id": cart_id}])
         for item in items_in_cart:
             # Verify that requested items are in stock
             num_in_inventory = connection.execute(sqlalchemy.text("SELECT quantity FROM potions WHERE sku = :item_sku"), [{"item_sku": item.potions_fkey}]).scalar_one()
             if num_in_inventory < item.quantity:
                 print("Cannot fulfill order")
                 raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.") 
+        '''
+
+        items_in_cart = connection.execute(sqlalchemy.text("""
+            SELECT cart_items.potions_fkey, cart_items.quantity, SUM(potions_ledger.change) AS num_in_inventory
+            FROM cart_items
+            LEFT JOIN potions_ledger ON cart_items.potions_fkey = potions_ledger.potion_sku
+            WHERE cart_items.cart_fkey = :cart_id
+            GROUP BY cart_items.potions_fkey, cart_items.quantity
+        """), [{"cart_id": cart_id}])
+
+        for item in items_in_cart:
+            # Verify that requested items are in stock
+            if item.num_in_inventory < item.quantity:
+                print("Cannot fulfill order")
+                raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.")
             
             print(f"Selling {item.quantity} {item.potions_fkey}s for {item.quantity * 50} gold")
 
-            gold_sql_statements.append("UPDATE inventory SET gold = gold + :gold_earned")
-            gold_sql_statement_args.append([{"gold_earned": item.quantity * 50}])
+            transaction_id = connection.execute(sqlalchemy.text("""
+                INSERT INTO transactions (description)
+                VALUES ('Barrel Purchase')
+                RETURNING id
+            """)).first().id
 
-            potion_sql_statements.append("UPDATE potions SET quantity = quantity - :num_sold WHERE sku = :item_sku")
-            potion_sql_statement_args.append([{"num_sold": item.quantity, "item_sku": item.potions_fkey}])
+            gold_sql_statements.append("""
+                INSERT INTO gold_ledger (transaction_id, change)
+                VALUES (:transaction_id, :change)
+            """)
+            gold_sql_statement_args.append([{
+                "transaction_id": transaction_id,
+                "change": item.quantity * 50
+            }])
+
+            potion_sql_statements.append("""
+                INSERT INTO potions_ledger (transaction_id, potion_sku, change)
+                VALUES (:transaction_id, :potion_sku, :change)
+            """)
+            potion_sql_statement_args.append([{
+              "transaction_id": transaction_id, 
+              "potion_sku": item.potions_fkey, 
+              "change": item.quantity * -1}])
             
             total_potions_sold += item.quantity
             total_gold_earned += item.quantity * 50
@@ -117,7 +159,13 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         util.log_shop_data(connection)
 
         # Enter payment
-        connection.execute(sqlalchemy.text("UPDATE carts SET payment = :payment WHERE id = :id"), [{"payment": cart_checkout.payment, "id": cart_id}])
+        connection.execute(sqlalchemy.text("""
+            UPDATE carts 
+            SET payment = :payment 
+            WHERE id = :id
+        """), 
+        [{"payment": cart_checkout.payment, 
+          "id": cart_id}])
 
         print(f"\nTotal_potions_bought: {total_potions_sold}, Total_gold_paid: {total_gold_earned}")
         return {"total_potions_bought": total_potions_sold, "total_gold_paid": total_gold_earned}
