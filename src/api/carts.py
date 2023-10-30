@@ -127,7 +127,7 @@ def search_orders(
                 "line_item_id": item.id,
                 "item_sku": str(item.quantity) + " " + item.item_sku,
                 "customer_name": item.customer_name,
-                "line_item_total": item.line_item_total * -1,
+                "line_item_total": item.line_item_total,
                 "timestamp": item.timestamp
             })
 
