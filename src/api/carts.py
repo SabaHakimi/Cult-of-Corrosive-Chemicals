@@ -1,4 +1,5 @@
 import sqlalchemy
+from sqlalchemy import func, select, join, and_
 from src import database as db
 from fastapi import APIRouter, Depends, Request, HTTPException
 from pydantic import BaseModel
@@ -55,20 +56,86 @@ def search_orders(
     Your results must be paginated, the max results you can return at any
     time is 5 total line items.
     """
+    with db.engine.begin() as connection:
+        metadata_obj = sqlalchemy.MetaData()
+        cart_items = sqlalchemy.Table("cart_items", metadata_obj, autoload_with=db.engine)
+        carts = sqlalchemy.Table("carts", metadata_obj, autoload_with=db.engine)
+        gold_ledger = sqlalchemy.Table("gold_ledger", metadata_obj, autoload_with=db.engine)
+        results = []
+       
+        prev = ""
+        next = ""
+        if search_page == "":
+            search_page = 0
+        else:
+            print(search_page)
+            search_page = int(search_page)
+        prev = search_page - 1
+        next = search_page + 1
+        
+        search_qry = (sqlalchemy.select(
+            cart_items.c.id,
+            cart_items.c.potions_fkey.label('item_sku'),
+            cart_items.c.quantity,
+            carts.c.customer_name,
+            carts.c.timestamp,
+            gold_ledger.c.change.label('line_item_total')
+        )).select_from(
+            join(cart_items, carts, cart_items.c.cart_fkey == carts.c.id)
+            .join(gold_ledger, cart_items.c.transaction_id == gold_ledger.c.transaction_id)
+        )
+        
+        if customer_name != "" and potion_sku != "":
+            search_qry = search_qry.where(
+                and_(
+                    func.lower(carts.c.customer_name) == func.lower(customer_name),
+                    func.lower(cart_items.c.potions_fkey) == func.lower(potion_sku)
+                )
+            )
+        elif customer_name != "":
+            search_qry = search_qry.where(
+                func.lower(carts.c.customer_name) == func.lower(customer_name)
+            )
+        elif potion_sku != "":
+            search_qry = search_qry.where(
+                func.lower(cart_items.c.potions_fkey) == func.lower(potion_sku)
+            )
 
-    return {
-        "previous": "",
-        "next": "",
-        "results": [
-            {
-                "line_item_id": 1,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            }
-        ],
-    }
+        # Determine sort column
+        if sort_col is search_sort_options.customer_name:
+            ordering = carts.c.customer_name
+        elif sort_col is search_sort_options.item_sku:
+            ordering = cart_items.c.potions_fkey
+        elif sort_col is search_sort_options.line_item_total:
+            ordering = gold_ledger.c.change
+        elif sort_col is search_sort_options.timestamp:
+            ordering = carts.c.timestamp
+
+        # Determine sort order
+        if sort_order is search_sort_order.desc:
+            ordering = sqlalchemy.desc(ordering)
+        else:
+            ordering = sqlalchemy.asc(ordering)
+
+        search_qry = search_qry.limit(5).offset(5 * search_page).order_by(ordering)
+
+        
+        search_result = connection.execute(search_qry)
+
+        for item in search_result:
+            results.append({
+                "line_item_id": item.id,
+                "item_sku": str(item.quantity) + " " + item.item_sku,
+                "customer_name": item.customer_name,
+                "line_item_total": item.line_item_total * -1,
+                "timestamp": item.timestamp
+            })
+
+        return {
+            "previous": str(prev) if prev >= 0 else "",
+            "next": str(next),
+            "results": results,
+        }
 
 
 class NewCart(BaseModel):
@@ -154,13 +221,15 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         gold_sql_statement_args = []
         potion_sql_statements = []
         potion_sql_statement_args = []
+        transaction_sql_statements = []
+        transaction_sql_statement_args = []
 
         items_in_cart = connection.execute(sqlalchemy.text("""
-            SELECT cart_items.potions_fkey, cart_items.quantity, COALESCE(SUM(potions_ledger.change), 0) AS num_in_inventory
+            SELECT cart_items.id, cart_items.potions_fkey, cart_items.quantity, COALESCE(SUM(potions_ledger.change), 0) AS num_in_inventory
             FROM cart_items
             LEFT JOIN potions_ledger ON cart_items.potions_fkey = potions_ledger.potion_sku
             WHERE cart_items.cart_fkey = :cart_id
-            GROUP BY cart_items.potions_fkey, cart_items.quantity
+            GROUP BY cart_items.id, cart_items.potions_fkey, cart_items.quantity
         """), [{"cart_id": cart_id}])
 
         for item in items_in_cart:
@@ -195,6 +264,16 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
               "potion_sku": item.potions_fkey, 
               "change": item.quantity * -1}])
             
+            transaction_sql_statements.append("""
+                UPDATE cart_items 
+                SET transaction_id = :transaction_id
+                WHERE id = :id
+            """)
+            transaction_sql_statement_args.append([{
+                "transaction_id": transaction_id,
+                "id": item.id
+            }])
+            
             total_potions_sold += item.quantity
             total_gold_earned += item.quantity * 50
         
@@ -202,6 +281,8 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         for i in range(len(gold_sql_statements)):
             connection.execute(sqlalchemy.text(gold_sql_statements[i]), gold_sql_statement_args[i])
             connection.execute(sqlalchemy.text(potion_sql_statements[i]), potion_sql_statement_args[i])
+            connection.execute(sqlalchemy.text(transaction_sql_statements[i]), transaction_sql_statement_args[i])
+                
 
         # Logging  
         print("\nTransaction completed.")
