@@ -76,7 +76,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     # Initialize Variables
-    # large_validation_set = {"LARGE_RED_BARREL", "LARGE_GREEN_BARREL", "LARGE_BLUE_BARREL"}
+    large_validation_set = {"LARGE_RED_BARREL", "LARGE_GREEN_BARREL", "LARGE_BLUE_BARREL"}
     medium_validation_set = {"MEDIUM_RED_BARREL", "MEDIUM_GREEN_BARREL", "MEDIUM_BLUE_BARREL"}
     small_validation_set = {"SMALL_RED_BARREL", "SMALL_GREEN_BARREL", "SMALL_BLUE_BARREL"}
     purchase_plan = []
@@ -94,6 +94,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         for i in range(len(wholesale_catalog)):
             print(wholesale_catalog[i])
             # Determine price threshold (and whether to skip the item)
+            if wholesale_catalog[i].sku in large_validation_set:
+                price_threshold = 1250
             if wholesale_catalog[i].sku in medium_validation_set: 
                 price_threshold = 570
             elif wholesale_catalog[i].sku in small_validation_set:
