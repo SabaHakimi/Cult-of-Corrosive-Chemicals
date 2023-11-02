@@ -110,6 +110,11 @@ def get_bottle_plan():
 
         # Mixing
         ml_data = util.get_liquids_data(connection)
+        red_ml = util.get_ml(ml_data, "red")
+        green_ml = util.get_ml(ml_data, "green")
+        blue_ml = util.get_ml(ml_data, "blue")
+
+
         potion_plan = []
         mix_all = True
         
@@ -122,15 +127,16 @@ def get_bottle_plan():
 
         if mix_all:
             potions = connection.execute(sqlalchemy.text("SELECT type FROM potions"))
-            num_to_mix_per_type = min(ml_data[0]['quantity'] // 200, ml_data[1]['quantity'] // 200, ml_data[2]['quantity'] // 200)
+            num_to_mix_per_type = min(red_ml // 200, green_ml // 150, blue_ml // 150)
             print(f"num_to_mix_per_type: {num_to_mix_per_type}")
             for potion in potions:
-                potion_plan.append(
-                    {
-                        "potion_type": potion.type,
-                        "quantity": num_to_mix_per_type
-                    }
-                )
+                if potion.sku != 'teal_potion':
+                    potion_plan.append(
+                        {
+                            "potion_type": potion.type,
+                            "quantity": num_to_mix_per_type
+                        }
+                    )
         else:
             liquids = util.get_liquids_data(connection)
             liquid_mapping = {

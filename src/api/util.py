@@ -15,11 +15,18 @@ def get_liquids_data(connection):
         GROUP BY liquid_type
     """)).all()]
 
+def get_ml(liquids_data, color):
+    for item in liquids_data:
+        if item['liquid_type'] == color:
+            return item['quantity']
+
+
 def get_potions_data(connection):
     return [x._asdict() for x in connection.execute(sqlalchemy.text("""
-        SELECT potion_sku, COALESCE(SUM(change), 0) as quantity
+        SELECT potion_sku, COALESCE(SUM(change), 0) as quantity, potions.type
         FROM potions_ledger
-        GROUP BY potion_sku
+        JOIN potions on potions_ledger.potion_sku = potions.sku 
+        GROUP BY potion_sku, type
     """)).all()]
 
 def log_shop_data(connection):

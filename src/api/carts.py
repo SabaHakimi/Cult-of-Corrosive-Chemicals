@@ -191,8 +191,8 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
         
         # Add items to cart
         connection.execute(sqlalchemy.text("""
-            INSERT INTO cart_items (cart_fkey, potions_fkey, quantity)
-            VALUES (:cart_fkey, (SELECT sku FROM potions WHERE sku = :item_sku), :quantity)
+            INSERT INTO cart_items (cart_fkey, potions_fkey, quantity, price_at_pickup)
+            VALUES (:cart_fkey, (SELECT sku FROM potions WHERE sku = :item_sku), :quantity, (SELECT price FROM potions WHERE sku = :item_sku))
         """), 
         [{"cart_fkey": cart_id, 
           "item_sku": item_sku, 
@@ -225,11 +225,11 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         transaction_sql_statement_args = []
 
         items_in_cart = connection.execute(sqlalchemy.text("""
-            SELECT cart_items.id, cart_items.potions_fkey, cart_items.quantity, COALESCE(SUM(potions_ledger.change), 0) AS num_in_inventory
+            SELECT cart_items.id, cart_items.potions_fkey, cart_items.quantity, cart_items.price_at_pickup, COALESCE(SUM(potions_ledger.change), 0) AS num_in_inventory
             FROM cart_items
             LEFT JOIN potions_ledger ON cart_items.potions_fkey = potions_ledger.potion_sku
             WHERE cart_items.cart_fkey = :cart_id
-            GROUP BY cart_items.id, cart_items.potions_fkey, cart_items.quantity
+            GROUP BY cart_items.id, cart_items.potions_fkey, cart_items.quantity, cart_items.price_at_pickup
         """), [{"cart_id": cart_id}])
 
         for item in items_in_cart:
@@ -238,7 +238,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
                 print("Cannot fulfill order")
                 raise HTTPException(status_code=400, detail="Not enough potions to fulfill order.")
             
-            print(f"Selling {item.quantity} {item.potions_fkey}s for {item.quantity * 50} gold")
+            print(f"Selling {item.quantity} {item.potions_fkey}s for {item.quantity * item.price_at_pickup} gold")
 
             transaction_id = connection.execute(sqlalchemy.text("""
                 INSERT INTO transactions (description)
@@ -252,7 +252,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             """)
             gold_sql_statement_args.append([{
                 "transaction_id": transaction_id,
-                "change": item.quantity * 50
+                "change": item.quantity * item.price_at_pickup
             }])
 
             potion_sql_statements.append("""
