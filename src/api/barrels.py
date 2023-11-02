@@ -76,9 +76,9 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     # Initialize Variables
-    large_validation_set = {"LARGE_RED_BARREL", "LARGE_GREEN_BARREL", "LARGE_BLUE_BARREL", "LARGE_DARK_BARREL"}
-    medium_validation_set = {"MEDIUM_RED_BARREL", "MEDIUM_GREEN_BARREL", "MEDIUM_BLUE_BARREL", "MEDIUM_DARK_BARREL"}
-    small_validation_set = {"SMALL_RED_BARREL", "SMALL_GREEN_BARREL", "SMALL_BLUE_BARREL", "SMALL_DARK_BARREL"}
+    large_validation_set = {"LARGE_DARK_BARREL"}
+    medium_validation_set = {"MEDIUM_DARK_BARREL"}
+    small_validation_set = {"SMALL_DARK_BARREL"}
     purchase_plan = []
     price_threshold = -1
 
@@ -86,6 +86,23 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print("\nCalling get_wholesale_purchase_plan")
     with db.engine.begin() as connection:
         # Pull data from DB and log current values
+        liquids_data = util.get_liquids_data(connection)
+        red_ml = util.get_ml(liquids_data, "red")
+        if red_ml < 20000:
+            large_validation_set.add("LARGE_RED_BARREL")
+            medium_validation_set.add("MEDIUM_RED_BARREL")
+            small_validation_set.add("SMALL_RED_BARREL")
+        green_ml = util.get_ml(liquids_data, "green")
+        if green_ml < 20000:
+            large_validation_set.add("LARGE_GREEN_BARREL")
+            medium_validation_set.add("MEDIUM_GREEN_BARREL")
+            small_validation_set.add("SMALL_GREEN_BARREL")
+        blue_ml = util.get_ml(liquids_data, "blue")
+        if blue_ml < 20000:
+            large_validation_set.add("LARGE_BLUE_BARREL")
+            medium_validation_set.add("MEDIUM_BLUE_BARREL")
+            small_validation_set.add("SMALL_BLUE_BARREL")
+
         expendable_gold = util.get_shop_gold(connection)
         print(f"\ngold: {expendable_gold}")
  
@@ -96,7 +113,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             # Determine price threshold (and whether to skip the item)
             if wholesale_catalog[i].sku in large_validation_set:
                 price_threshold = 1250
-            if wholesale_catalog[i].sku in medium_validation_set: 
+            elif wholesale_catalog[i].sku in medium_validation_set: 
                 price_threshold = 570
             elif wholesale_catalog[i].sku in small_validation_set:
                 price_threshold = wholesale_catalog[i].price

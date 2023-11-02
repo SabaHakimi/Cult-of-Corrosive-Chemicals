@@ -275,7 +275,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             }])
             
             total_potions_sold += item.quantity
-            total_gold_earned += item.quantity * 50
+            total_gold_earned += item.quantity * item.price_at_pickup
         
         # Execute statements
         for i in range(len(gold_sql_statements)):

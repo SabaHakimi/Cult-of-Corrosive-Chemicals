@@ -126,7 +126,7 @@ def get_bottle_plan():
                     mix_all = False
 
         if mix_all:
-            potions = connection.execute(sqlalchemy.text("SELECT type FROM potions"))
+            potions = connection.execute(sqlalchemy.text("SELECT sku, type FROM potions"))
             num_to_mix_per_type = min(red_ml // 200, green_ml // 150, blue_ml // 150)
             print(f"num_to_mix_per_type: {num_to_mix_per_type}")
             for potion in potions:
