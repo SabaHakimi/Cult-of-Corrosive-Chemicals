@@ -30,7 +30,7 @@ def get_catalog():
                     SET price = :price
                     WHERE sku = :sku
                 """),
-                [{"price": potion_price, 
+                [{"price": 1 if potion['potion_sku'] == 'teal_potion' else potion_price, 
                   "sku": potion['potion_sku']}])
                 
                 # Create catalog entry and add to catalog
