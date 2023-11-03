@@ -105,8 +105,7 @@ def get_bottle_plan():
             FROM liquids_ledger
         """)).scalar_one()
 
-        total_potion_cnt_after_mix = (total_ml // 100) + (num_potions if num_potions is not None else 0)
-        ml_over_capacity = max(0, (total_potion_cnt_after_mix - 300) * 100)
+        max_mix_count_per_type = (300 - num_potions) // 6
 
         # Mixing
         ml_data = util.get_liquids_data(connection)
@@ -121,13 +120,13 @@ def get_bottle_plan():
         if len(ml_data) < 3:
             mix_all = False
         else:
-            for item in ml_data:
-                if item['quantity'] - (ml_over_capacity // 3) < 600:
-                    mix_all = False
+            if red_ml < 600 or green_ml < 600 or blue_ml < 450:
+                mix_all = False
 
         if mix_all:
             potions = connection.execute(sqlalchemy.text("SELECT sku, type FROM potions"))
             num_to_mix_per_type = min(red_ml // 200, green_ml // 150, blue_ml // 150)
+            num_to_mix_per_type = min(num_to_mix_per_type, max_mix_count_per_type)
             print(f"num_to_mix_per_type: {num_to_mix_per_type}")
             for potion in potions:
                 if potion.sku != 'teal_potion':
