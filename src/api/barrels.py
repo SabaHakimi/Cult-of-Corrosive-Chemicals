@@ -102,9 +102,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             print(f"color: {color}, amount: {amount}")
             if amount < 3000:
                 small_validation_set.add(f"SMALL_{color.upper()}_BARREL")
-            if amount < 10000:
+            if amount < 15000:
                 medium_validation_set.add(f"MEDIUM_{color.upper()}_BARREL")
-            if amount < 50000:
+            if amount < 70000:
                 large_validation_set.add(f"LARGE_{color.upper()}_BARREL")
  
         print("\nWholesale Catalog:")
@@ -136,9 +136,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 color_ml = ml_count[color]
                 limit_by_price = (gold_at_start // 4) // sorted_catalog[i].price
                 if sorted_catalog[i].sku in large_validation_set:
-                    limit_by_desire = (((100000 if color == "dark" else 50000) - color_ml) // sorted_catalog[i].ml_per_barrel) + 1
+                    limit_by_desire = (((100000 if color == "dark" else 70000) - color_ml) // sorted_catalog[i].ml_per_barrel) + 1
                 elif sorted_catalog[i].sku in medium_validation_set:
-                    limit_by_desire = (((50000 if color == "dark" else 10000) - color_ml) // sorted_catalog[i].ml_per_barrel) + 1
+                    limit_by_desire = (((50000 if color == "dark" else 15000) - color_ml) // sorted_catalog[i].ml_per_barrel) + 1
                 else:
                     continue
                 # Define purchase amount and mark purchase
