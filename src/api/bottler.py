@@ -93,30 +93,30 @@ def get_bottle_plan():
         # Logging
         util.log_shop_data(connection)
 
-        # Determine mixable amount of liquid
-        num_potions = connection.execute(sqlalchemy.text("""
-            SELECT COALESCE(SUM(change), 0) as quantity
-            FROM potions_ledger
-        """)).scalar_one()
-        print(f"num_total_potions: {num_potions}")
+        # Get Potions Data
+        num_potions = 0
+        potion_dict = {}
+        potions_data = util.get_potions_data(connection)
+        for potion in potions_data:
+            potion_dict[potion['potion_sku']] = potion['quantity']
+            num_potions += potion['quantity']
+        print(potion_dict)
 
         max_mix_count_per_type = (300 - num_potions) // 6
 
-        # Mixing
+        # Get liquids data
         ml_data = util.get_liquids_data(connection)
         red_ml = util.get_ml(ml_data, "red")
         green_ml = util.get_ml(ml_data, "green")
         blue_ml = util.get_ml(ml_data, "blue")
+        dark_ml = util.get_ml(ml_data, "dark")
 
-
+        # Mixing
         potion_plan = []
         mix_all = True
         
-        if len(ml_data) < 3:
+        if red_ml < 600 or green_ml < 600 or blue_ml < 450:
             mix_all = False
-        else:
-            if red_ml < 600 or green_ml < 600 or blue_ml < 450:
-                mix_all = False
 
         if mix_all:
             potions = connection.execute(sqlalchemy.text("SELECT sku, type FROM potions"))
@@ -124,13 +124,17 @@ def get_bottle_plan():
             num_to_mix_per_type = min(num_to_mix_per_type, max_mix_count_per_type)
             print(f"num_to_mix_per_type: {num_to_mix_per_type}")
             for potion in potions:
-                if potion.sku != 'teal_potion':
-                    potion_plan.append(
-                        {
-                            "potion_type": potion.type,
-                            "quantity": num_to_mix_per_type
-                        }
-                    )
+                if potion.sku != 'teal_potion' and potion.sku != 'dark_potion':
+                    # Maintain max of 50 potions of each type in inventory
+                    quantity = min(max(0, 50 - potion_dict[potion.sku]), num_to_mix_per_type)
+                    if quantity > 0:
+                        potion_plan.append(
+                            {
+                                "potion_type": potion.type,
+                                "quantity": quantity
+                            }
+                        )
+                        num_potions += quantity
         else:
             liquids = util.get_liquids_data(connection)
             liquid_mapping = {
@@ -139,13 +143,31 @@ def get_bottle_plan():
                 "blue": [0, 0, 100, 0]
             }
             for liquid in liquids:
-                if liquid['quantity'] >= 100:
+                quantity = min(5, 300 - num_potions, liquid['quantity'] // 100)
+                if quantity > 0:
                     potion_plan.append(
                         {
                             "potion_type": liquid_mapping[liquid['liquid_type']],
-                            "quantity": min(5, liquid['quantity'] // 100)
+                            "quantity": quantity
                         }
                     )
+                    num_potions += quantity
+
+        # Dark potion logic handled separately
+        dark_potion_count = connection.execute(sqlalchemy.text("""
+            SELECT COALESCE(SUM(change), 0) as quantity
+            FROM potions_ledger
+            WHERE potion_sku = 'dark_potion'
+        """)).scalar_one()
+        quantity = min(5, 300 - num_potions, 30 - dark_potion_count, dark_ml // 100)
+        if quantity > 0:
+            potion_plan.append(
+                {
+                    "potion_type": [0, 0, 0, 100],
+                    "quantity": quantity
+                }
+            )
+            num_potions += quantity                                      
 
         # Logging
         print("\nPotion plan:")
