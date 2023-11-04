@@ -100,11 +100,6 @@ def get_bottle_plan():
         """)).scalar_one()
         print(f"num_total_potions: {num_potions}")
 
-        total_ml = connection.execute(sqlalchemy.text("""
-            SELECT COALESCE(SUM(change), 0) as quantity
-            FROM liquids_ledger
-        """)).scalar_one()
-
         max_mix_count_per_type = (300 - num_potions) // 6
 
         # Mixing

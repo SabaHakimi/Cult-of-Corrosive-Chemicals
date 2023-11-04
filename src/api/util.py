@@ -19,6 +19,7 @@ def get_ml(liquids_data, color):
     for item in liquids_data:
         if item['liquid_type'] == color:
             return item['quantity']
+    return 0
 
 
 def get_potions_data(connection):
