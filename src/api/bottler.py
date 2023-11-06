@@ -159,7 +159,7 @@ def get_bottle_plan():
             FROM potions_ledger
             WHERE potion_sku = 'dark_potion'
         """)).scalar_one()
-        quantity = min(5, 300 - num_potions, 30 - dark_potion_count, dark_ml // 100)
+        quantity = min(300 - num_potions, 50 - dark_potion_count, dark_ml // 100)
         if quantity > 0:
             potion_plan.append(
                 {
