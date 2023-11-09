@@ -136,7 +136,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 color_ml = ml_count[color]
                 limit_by_price = (gold_at_start // 4) // sorted_catalog[i].price
                 if sorted_catalog[i].sku in large_validation_set:
-                    limit_by_desire = (((100000 if color == "dark" else 90000) - color_ml) // sorted_catalog[i].ml_per_barrel) + 1
+                    limit_by_desire = ((90000 - color_ml) // sorted_catalog[i].ml_per_barrel) + 1
                 elif sorted_catalog[i].sku in medium_validation_set:
                     limit_by_desire = ((15000 - color_ml) // sorted_catalog[i].ml_per_barrel) + 1
                 else:

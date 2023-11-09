@@ -21,27 +21,28 @@ def get_catalog():
 
         # Add each potion type to the cart, if available
         for potion in potions:
-            if potion['quantity'] > 0:
-                # Calculate potion price
-                potion_price = 50 - max(((potion['quantity'] - 30) // 2), 0)
-                # Update price in potions table
-                connection.execute(sqlalchemy.text("""
-                    UPDATE potions
-                    SET price = :price
-                    WHERE sku = :sku
-                """),
-                [{"price": 1 if potion['potion_sku'] == 'teal_potion' else potion_price, 
-                  "sku": potion['potion_sku']}])
-                
-                # Create catalog entry and add to catalog
-                catalog_entry = {
-                            "sku": potion['potion_sku'],
-                            "name": potion['potion_sku'],
-                            "quantity": potion['quantity'],
-                            "price": 1 if potion['potion_sku'] == 'teal_potion' else potion_price,
-                            "potion_type": potion['type'],
-                        }
-                catalog.append(catalog_entry)
+            if potion['potion_sku'] != 'teal_potion' and potion['potion_sku'] != 'red_potion':
+                if potion['quantity'] > 0:
+                    # Calculate potion price
+                    potion_price = 50 - max(((potion['quantity'] - 30) // 2), 0)
+                    # Update price in potions table
+                    connection.execute(sqlalchemy.text("""
+                        UPDATE potions
+                        SET price = :price
+                        WHERE sku = :sku
+                    """),
+                    [{"price": 1 if potion['potion_sku'] == 'teal_potion' else potion_price, 
+                    "sku": potion['potion_sku']}])
+                    
+                    # Create catalog entry and add to catalog
+                    catalog_entry = {
+                                "sku": potion['potion_sku'],
+                                "name": potion['potion_sku'],
+                                "quantity": potion['quantity'],
+                                "price": 1 if potion['potion_sku'] == 'teal_potion' else potion_price,
+                                "potion_type": potion['type'],
+                            }
+                    catalog.append(catalog_entry)
 
         # Logging
         print("Catalog:")

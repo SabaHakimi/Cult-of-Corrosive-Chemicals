@@ -124,7 +124,7 @@ def get_bottle_plan():
             num_to_mix_per_type = min(num_to_mix_per_type, max_mix_count_per_type)
             print(f"num_to_mix_per_type: {num_to_mix_per_type}")
             for potion in potions:
-                if potion.sku != 'teal_potion' and potion.sku != 'dark_potion':
+                if potion.sku != 'teal_potion' and potion.sku != 'dark_potion' and potion.sku != 'ocean_potion':
                     # Maintain max of 50 potions of each type in inventory
                     quantity = min(max(0, 50 - potion_dict[potion.sku]), num_to_mix_per_type)
                     if quantity > 0:
@@ -159,11 +159,27 @@ def get_bottle_plan():
             FROM potions_ledger
             WHERE potion_sku = 'dark_potion'
         """)).scalar_one()
-        quantity = min(300 - num_potions, 50 - dark_potion_count, dark_ml // 100)
+        quantity = min(300 - num_potions, 50 - dark_potion_count, dark_ml // 150)
         if quantity > 0:
             potion_plan.append(
                 {
                     "potion_type": [0, 0, 0, 100],
+                    "quantity": quantity
+                }
+            )
+            num_potions += quantity
+
+        # Ocean potion logic handled separately
+        ocean_potion_count = connection.execute(sqlalchemy.text("""
+            SELECT COALESCE(SUM(change), 0) as quantity
+            FROM potions_ledger
+            WHERE potion_sku = 'ocean_potion'
+        """)).scalar_one()
+        quantity = min(300 - num_potions, 50 - ocean_potion_count, dark_ml // 50, blue_ml // 50)
+        if quantity > 0:
+            potion_plan.append(
+                {
+                    "potion_type": [0, 0, 50, 50],
                     "quantity": quantity
                 }
             )
