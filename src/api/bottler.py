@@ -159,7 +159,7 @@ def get_bottle_plan():
             FROM potions_ledger
             WHERE potion_sku = 'dark_potion'
         """)).scalar_one()
-        quantity = min(300 - num_potions, 50 - dark_potion_count, dark_ml // 150)
+        quantity = min(300 - num_potions, 50 - dark_potion_count, dark_ml // 100)
         if quantity > 0:
             potion_plan.append(
                 {
@@ -169,12 +169,13 @@ def get_bottle_plan():
             )
             num_potions += quantity
 
+        """
         # Ocean potion logic handled separately
-        ocean_potion_count = connection.execute(sqlalchemy.text("""
+        ocean_potion_count = connection.execute(sqlalchemy.text(""
             SELECT COALESCE(SUM(change), 0) as quantity
             FROM potions_ledger
             WHERE potion_sku = 'ocean_potion'
-        """)).scalar_one()
+        "")).scalar_one()
         quantity = min(300 - num_potions, 50 - ocean_potion_count, dark_ml // 50, blue_ml // 50)
         if quantity > 0:
             potion_plan.append(
@@ -184,7 +185,8 @@ def get_bottle_plan():
                 }
             )
             num_potions += quantity                                      
-
+        """
+            
         # Logging
         print("\nPotion plan:")
         for potion in potion_plan:
