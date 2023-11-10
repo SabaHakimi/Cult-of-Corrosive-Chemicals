@@ -21,7 +21,7 @@ def get_catalog():
 
         # Add each potion type to the cart, if available
         for potion in potions:
-            if potion['potion_sku'] != 'teal_potion' and potion['potion_sku'] != 'green_potion':
+            if potion['potion_sku'] != 'teal_potion' and potion['potion_sku'] != 'ocean_potion':
                 if potion['quantity'] > 0:
                     # Calculate potion price
                     potion_price = 50 - max(((potion['quantity'] - 30) // 2), 0)
