@@ -135,24 +135,6 @@ def get_bottle_plan():
                             }
                         )
                         num_potions += quantity
-        elif green_ml >= 600 and blue_ml >= 600:
-            potions = connection.execute(sqlalchemy.text("SELECT sku, type FROM potions"))
-            num_to_mix_per_type = min(green_ml // 100, blue_ml // 200)
-            max_mix_count_per_type = (300 - num_potions) // 4
-            num_to_mix_per_type = min(num_to_mix_per_type, max_mix_count_per_type)
-            print(f"num_to_mix_per_type: {num_to_mix_per_type}")
-            for potion in potions:
-                if potion.sku != 'teal_potion' and potion.sku != 'red_potion' and potion.sku != 'purple_potion' and potion.sku != 'brown_potion':
-                    # Maintain max of 50 potions of each type in inventory
-                    quantity = min(max(0, 50 - potion_dict[potion.sku]), num_to_mix_per_type)
-                    if quantity > 0:
-                        potion_plan.append(
-                            {
-                                "potion_type": potion.type,
-                                "quantity": quantity
-                            }
-                        )
-                        num_potions += quantity
         else:
             liquids = util.get_liquids_data(connection)
             liquid_mapping = {
@@ -171,13 +153,12 @@ def get_bottle_plan():
                     )
                     num_potions += quantity
 
-        """
         # Dark potion logic handled separately
-        dark_potion_count = connection.execute(sqlalchemy.text(""
+        dark_potion_count = connection.execute(sqlalchemy.text("""
             SELECT COALESCE(SUM(change), 0) as quantity
             FROM potions_ledger
             WHERE potion_sku = 'dark_potion'
-        "")).scalar_one()
+        """)).scalar_one()
         quantity = min(300 - num_potions, 50 - dark_potion_count, dark_ml // 150)
         if quantity > 0:
             potion_plan.append(
@@ -188,7 +169,7 @@ def get_bottle_plan():
             )
             num_potions += quantity
 
-        
+        """
         # Ocean potion logic handled separately
         ocean_potion_count = connection.execute(sqlalchemy.text(""
             SELECT COALESCE(SUM(change), 0) as quantity
@@ -203,8 +184,8 @@ def get_bottle_plan():
                     "quantity": quantity
                 }
             )
-            num_potions += quantity                                      
-        """
+            num_potions += quantity
+        """                                
             
         # Logging
         print("\nPotion plan:")

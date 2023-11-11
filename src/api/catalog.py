@@ -18,11 +18,22 @@ def get_catalog():
         util.log_shop_data(connection)
         catalog = []
         potions = util.get_potions_data(connection)
-        catalog_set = {"green_potion", "blue_potion", "dark_potion", "purple_potion", "brown_potion", "ocean_potion"}
+        catalog_set = {"red_potion", "green_potion", "blue_potion", "dark_potion", "purple_potion", "brown_potion"}
+        excluded_set = {"ocean_potion"}
+        open_slots = 0
 
         # Add each potion type to the cart, if available
         for potion in potions:
+            if potion['potion_sku'] in catalog_set and potion['quantity'] == 0:
+                open_slots += 1
+        for potion in potions:
+            add_item = False
             if potion['potion_sku'] in catalog_set:
+                add_item = True
+            elif potion['potion_sku'] in excluded_set and open_slots > 0:
+                add_item = True
+                open_slots -= 1
+            if add_item:
                 if potion['quantity'] > 0:
                     # Calculate potion price
                     potion_price = 50 - max(((potion['quantity'] - 30) // 2), 0)
