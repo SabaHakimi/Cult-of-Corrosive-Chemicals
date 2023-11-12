@@ -36,7 +36,7 @@ def get_catalog():
             if add_item:
                 if potion['quantity'] > 0:
                     # Calculate potion price
-                    potion_price = 50 - max(((potion['quantity'] - 30) // 2), 0)
+                    potion_price = 50 - max(min((potion['quantity'] - 30), 15), 0)
                     # Update price in potions table
                     connection.execute(sqlalchemy.text("""
                         UPDATE potions
