@@ -18,8 +18,8 @@ def get_catalog():
         util.log_shop_data(connection)
         catalog = []
         potions = util.get_potions_data(connection)
-        catalog_set = {"red_potion", "green_potion", "blue_potion", "dark_potion", "purple_potion", "brown_potion"}
-        excluded_set = {"ocean_potion"}
+        catalog_set = {"red_potion", "green_potion", "ocean_potion", "dark_potion", "purple_potion", "brown_potion"}
+        excluded_set = {"blue_potion"}
         open_slots = 0
 
         # Add each potion type to the cart, if available
@@ -36,7 +36,7 @@ def get_catalog():
             if add_item:
                 if potion['quantity'] > 0:
                     # Calculate potion price
-                    potion_price = 45 - max(min((potion['quantity'] - 30), 15), 0)
+                    potion_price = 45 - max(((potion['quantity'] - 30) // 2), 0)
                     # Update price in potions table
                     connection.execute(sqlalchemy.text("""
                         UPDATE potions
