@@ -75,8 +75,16 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 # Place order
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
+    for item in wholesale_catalog:
+        if item.sku == "LARGE_RED_BARREL":
+            return [
+                    {
+                        "sku": "LARGE_RED_BARREL",
+                        "quantity": 1
+                    }]
     return []
     
+    """
     # Initialize Variables
     large_validation_set = {"LARGE_DARK_BARREL"}
     medium_validation_set = {"MEDIUM_DARK_BARREL"}
@@ -164,3 +172,4 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
 
         print(f"\nPurchase plan: {purchase_plan}")  
         return purchase_plan
+        """
